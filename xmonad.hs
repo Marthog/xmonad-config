@@ -301,7 +301,7 @@ myLayout info = lessBorders Screen . avoidStruts $ layout
 -- 'className' and 'resource' are used below.
 --
 myManageHook info = composeAll [ 
-    bindToScreen "Thunderbird" 5
+    bindToScreen "Thunderbird" 6
     , bindToScreen "Vlc" 2
     , bindToScreen "Steam" 7
     , className =? "Xmessage" --> doFloat
