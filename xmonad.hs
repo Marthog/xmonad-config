@@ -26,7 +26,6 @@ import qualified XMonad.StackSet as W
 import qualified Data.Map        as M
  
 data StartupInfo = StartupInfo {
-    xmobarPipe :: Handle
 }
 
 
@@ -158,12 +157,6 @@ myKeys conf@XConfig {modMask = modm} = M.fromList $
  
     -- Deincrement the number of windows in the master area
 --    , ((modm              , xK_period), sendMessage (IncMasterN (-1)))
- 
-    -- Toggle the status bar gap
-    -- Use this binding with avoidStruts from Hooks.ManageDocks.
-    -- See also the statusBar function from Hooks.DynamicLog.
-    --
-    , ((modm              , xK_b     ), sendMessage ToggleStruts)
  
     -- Quit xmonad
     , ((modm .|. extMask  , xK_q     ), io exitSuccess)
@@ -329,17 +322,20 @@ myEventHook = handleEventHook defaultConfig <+> fullscreenEventHook
 --
 textColor color = xmobarColor color ""
 
-myLogHook info = dynamicLogWithPP xmobarPP
-               { ppOutput = printPipe 
-               , ppTitle  = textColor "lightblue" . shorten 100
+myPP = xmobarPP
+               { 
+               ppTitle  = textColor "lightblue" . shorten 100
                , ppSep    = replicate 5 ' '
                , ppWsSep  = " | "
                , ppCurrent = textColor "orange"
                , ppUrgent = textColor "red"
 --               , ppHiddenNoWindows = textColor "#707070"
                , ppOrder = \(x:xs) -> reverse xs++[wrap "[ " " ]" x]
-               } >> updatePointer (0.5, 0.5) (0.5, 0.5)
-    where printPipe = hPutStrLn $ xmobarPipe info
+               , ppExtras = ppExtras xmobarPP
+               } 
+
+myLogHook info = dynamicLog >> updatePointer (0.5, 0.5) (0.5, 0.5)
+
  
 ------------------------------------------------------------------------
 -- Startup hook
@@ -351,15 +347,16 @@ myLogHook info = dynamicLogWithPP xmobarPP
 -- By default, do nothing.
 --
 myStartupHook = return ()
- 
+
+ -- Key binding to toggle the gap for the bar.
+toggleStrutsKey XConfig {XMonad.modMask = modMask} = (modMask, xK_b)
+
 ------------------------------------------------------------------------
 -- Now run xmonad with all the defaults we set up.
  
-main = do
-    xmobar_pipe <- spawnPipe "xmobar ~/.xmonad/xmobarrc"
-    xmonad $ defaults StartupInfo {
-            xmobarPipe		= xmobar_pipe
-        }
+main = 
+    -- xmobar_pipe <- spawnPipe "xmobar ~/.xmonad/xmobarrc"
+    xmonad =<< statusBar "xmobar ~/.xmonad/xmobarrc" myPP toggleStrutsKey (defaults StartupInfo)
  
 -- A structure containing your configuration settings, overriding
 -- fields in the default config. Any you don't override, will
