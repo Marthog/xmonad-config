@@ -26,13 +26,21 @@ import qualified Data.Map        as M
  
 
 
+setBgMon1 = "xsetbg -at 0,0 .xmonad/carina_2560x1440.png"
+setBgMon2 = "xsetbg -at 0,0 .xmonad/carina_2560x1440.png -at 1920,0 .xmonad/carina_2560x1440.png"
+xrandrMon1 = "xrandr --output DisplayPort-0 --auto --primary --output DVI-1 --off"
+xrandrMon2 = "xrandr --output DisplayPort-0 --auto --primary --output DVI-1 --auto --left-of DisplayPort-0" 
+
 data StartupInfo = StartupInfo {
 }
 
 
-monitorDual, monitorSingle :: X ()
-monitorDual = unsafeSpawn "xrandr --output DisplayPort-0 --auto --primary --output DVI-1 --auto --left-of DisplayPort-0"
-monitorSingle = unsafeSpawn "xrandr --output DisplayPort-0 --auto --primary --output DVI-1 --off"
+monitorDual, monitorSingle :: MonadIO m => m ()
+monitorDual = do
+    unsafeSpawn $ concat [xrandrMon2, " && ", setBgMon2]
+
+monitorSingle = do
+    unsafeSpawn $ concat [xrandrMon1, " && ", setBgMon1]
 
 
 -- The preferred terminal program, which is used in a binding below and by
@@ -349,7 +357,7 @@ myLogHook info = updatePointer (0.5, 0.5) (0.5, 0.5) <* dynamicLog
 --
 -- By default, do nothing.
 --
-myStartupHook = return ()
+myStartupHook = monitorSingle
 
  -- Key binding to toggle the gap for the bar.
 toggleStrutsKey XConfig {XMonad.modMask = modMask} = (modMask, xK_b)
@@ -357,9 +365,11 @@ toggleStrutsKey XConfig {XMonad.modMask = modMask} = (modMask, xK_b)
 ------------------------------------------------------------------------
 -- Now run xmonad with all the defaults we set up.
  
-main = 
-    -- xmobar_pipe <- unsafeSpawnPipe "xmobar ~/.xmonad/xmobarrc"
-    xmonad =<< statusBar "xmobar ~/.xmonad/xmobarrc" myPP toggleStrutsKey (defaults StartupInfo)
+main = do
+    -- start single monitor
+
+    xmobar <- statusBar "xmobar ~/.xmonad/xmobarrc" myPP toggleStrutsKey (defaults StartupInfo)
+    xmonad xmobar
  
 -- A structure containing your configuration settings, overriding
 -- fields in the default config. Any you don't override, will
