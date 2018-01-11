@@ -7,30 +7,32 @@
  
 import XMonad
 import Data.Monoid
-import System.Exit
+import System.Exit(exitSuccess)
 import System.IO(Handle)
 import XMonad.Hooks.DynamicLog
 import XMonad.Util.Run (spawnPipe, hPutStrLn)
-import XMonad.ManageHook
-import XMonad.Hooks.ManageDocks
-import XMonad.Hooks.ManageHelpers
-import XMonad.Layout.NoBorders
+import XMonad.Hooks.ManageDocks(avoidStruts, manageDocks)
+import XMonad.Hooks.ManageHelpers(isDialog, isFullscreen, doFullFloat)
+import XMonad.Layout.NoBorders(lessBorders,Ambiguity(..))
 import XMonad.Hooks.EwmhDesktops
-import XMonad.Util.Run(safeSpawn)
+import XMonad.Util.Run(unsafeSpawn, safeSpawn)
 
-import XMonad.Layout.IndependentScreens
 import XMonad.Layout((|||), Full, Tall)
-import XMonad.Layout.ThreeColumns
+import XMonad.Layout.ThreeColumns(ThreeCol(..))
 
-import XMonad.Actions.UpdatePointer
+import XMonad.Actions.UpdatePointer(updatePointer)
 import qualified XMonad.StackSet as W
 import qualified Data.Map        as M
  
+
+
 data StartupInfo = StartupInfo {
 }
 
-zsh :: MonadIO m => [String] -> m ()
-zsh s = safeSpawn "zsh" ("-c":s)
+
+monitorDual, monitorSingle :: X ()
+monitorDual = unsafeSpawn "xrandr --output DisplayPort-0 --auto --primary --output DVI-1 --auto --left-of DisplayPort-0"
+monitorSingle = unsafeSpawn "xrandr --output DisplayPort-0 --auto --primary --output DVI-1 --off"
 
 
 -- The preferred terminal program, which is used in a binding below and by
@@ -57,14 +59,15 @@ extraKeyMask    = mod1Mask       -- key for choosing keyboard settings
 extMask         = extensionMask
 
 -- Increase the volume in steps of 5%.
-volumeStep      = 5
+volumeStep      = show 5
 
-volumeMod inc   = setMaster $ show volumeStep++"%"++showsgn
-    where   setMaster x = amixerSet $ "Master "++x
-            showsgn = if inc then "+" else "-"
+volumeMod inc   = amixerSet [
+            "Master"
+            , volumeStep++"%"++if inc then "+" else "-"
+        ]
 
 -- Use amixer to set a volume.
-amixerSet x = spawn $ "amixer set "++x
+amixerSet x = safeSpawn "amixer" ("set":x)
 
 
 toggleXMobarKey XConfig { XMonad.modMask = modMask } = (modMask, xK_b)
@@ -87,13 +90,13 @@ myFocusedBorderColor = "red"
 
 
 -- Spawn dmenu to select a program.
-dmenuSpawn = spawn "exe=`dmenu_path | dmenu` && eval \"exec $exe\""
+dmenuSpawn = unsafeSpawn "exe=`dmenu_path | dmenu` && eval \"exec $exe\""
 
 -- Run dmenu on a list of selected programs.
-programListRun = spawn "exe=`cat .xmonad/program_list | sort | dmenu` && eval \"exec $exe\""
+programListRun = unsafeSpawn "exe=`cat .xmonad/program_list | sort | dmenu` && eval \"exec $exe\""
 
 -- Spawn a new terminal.
-terminalSpawn = spawn . XMonad.terminal
+terminalSpawn = unsafeSpawn . XMonad.terminal
 
 
 -- Key bindings. Add, modify or remove key bindings here.
@@ -106,7 +109,7 @@ myKeys conf@XConfig {modMask = modm} = M.fromList $
     , ((modm,               xK_d     ), programListRun)
 
     -- launch gmrun
-    -- removed spawn gmrun
+    -- removed unsafeSpawn gmrun
     , ((modm .|. extMask, xK_d     ), dmenuSpawn)
  
     -- close focused window
@@ -166,12 +169,12 @@ myKeys conf@XConfig {modMask = modm} = M.fromList $
     , ((modm .|. extMask  , xK_q     ), io exitSuccess)
  
     -- Restart xmonad
-    , ((modm              , xK_q     ), spawn "xmonad --recompile && xmonad --restart")
+    , ((modm              , xK_q     ), unsafeSpawn "xmonad --recompile && xmonad --restart")
 
 
     , ((modm             , xK_Up ), volumeMod True)
     , ((modm             , xK_Down ), volumeMod False)
-    , ((modm             , xK_Tab ), amixerSet "Master toggle")
+    , ((modm             , xK_Tab ), amixerSet ["Master", "toggle"])
 
 
     , ((modm .|. extraKeyMask  , xK_0     ), changeKeyboardMap "us")
@@ -179,15 +182,15 @@ myKeys conf@XConfig {modMask = modm} = M.fromList $
 --    , ((modm .|. extraKeyMask  , xK_9     ), changeKeyboardMap "dvorak")
     , ((modm .|. extraKeyMask  , xK_9     ), enableNeo)
 
-    , ((modm .|. extraKeyMask  , xK_2     ), zsh ["dual"])
-    , ((modm .|. extraKeyMask  , xK_1     ), zsh ["single"])
+    , ((modm .|. extraKeyMask  , xK_2     ), monitorDual)
+    , ((modm .|. extraKeyMask  , xK_1     ), monitorSingle)
     ]
 
 
     -- special programs
     ++
 
-    [ ((modm .|. quickstartMask  , k), spawn p) | (k, p) <- programList]
+    [ ((modm .|. quickstartMask  , k), unsafeSpawn p) | (k, p) <- programList]
 
     ++
  
@@ -229,10 +232,10 @@ programList =
 -- Enable the neo layout. Disable numlock first.
 -- Also use xset -r 51 although I forgot, why.
 enableNeo :: MonadIO m => m ()
-enableNeo = spawn "numlockx off && setxkbmap de neo -option  && xset -r 51"
+enableNeo = unsafeSpawn "numlockx off && setxkbmap de neo -option  && xset -r 51"
 
 -- Change the keyboard map.
-changeKeyboardMap x = spawn $ "setxkbmap "++x
+changeKeyboardMap x = safeSpawn "setxkbmap" [x]
 
 ------------------------------------------------------------------------
 -- Mouse bindings: default actions bound to mouse events
@@ -268,10 +271,7 @@ myLayout info = lessBorders Screen . avoidStruts $ layout
         -- layout = layoutHook defaultConfig
         layout = tiled ||| Full ||| three
         -- default tiling algorithm partitions the screen into two panes
-        tiled   = Tall nmaster delta ratio
-
-       -- The default number of windows in the master pane
-        nmaster = 1
+        tiled   = Tall 1 delta ratio
 
        -- Default proportion of screen occupied by master pane
         ratio   = 55/100
@@ -315,7 +315,7 @@ myManageHook info = composeAll [
 -- return (All True) if the default handler is to be run afterwards. To
 -- combine event hooks use mappend or mconcat from Data.Monoid.
 --
-myEventHook = handleEventHook def <+> fullscreenEventHook 
+myEventHook = handleEventHook def <> fullscreenEventHook 
  
 ------------------------------------------------------------------------
 -- Status bars and logging
@@ -337,7 +337,7 @@ myPP = xmobarPP
                , ppExtras = ppExtras xmobarPP
                } 
 
-myLogHook info = dynamicLog >> updatePointer (0.5, 0.5) (0.5, 0.5)
+myLogHook info = updatePointer (0.5, 0.5) (0.5, 0.5) <* dynamicLog 
 
  
 ------------------------------------------------------------------------
@@ -358,7 +358,7 @@ toggleStrutsKey XConfig {XMonad.modMask = modMask} = (modMask, xK_b)
 -- Now run xmonad with all the defaults we set up.
  
 main = 
-    -- xmobar_pipe <- spawnPipe "xmobar ~/.xmonad/xmobarrc"
+    -- xmobar_pipe <- unsafeSpawnPipe "xmobar ~/.xmonad/xmobarrc"
     xmonad =<< statusBar "xmobar ~/.xmonad/xmobarrc" myPP toggleStrutsKey (defaults StartupInfo)
  
 -- A structure containing your configuration settings, overriding
@@ -383,7 +383,7 @@ defaults info = ewmh def {
  
       -- hooks, layouts
         layoutHook         = myLayout info,
-        manageHook         = manageDocks <+> myManageHook info <+> manageHook def
+        manageHook         = manageDocks <> myManageHook info <> manageHook def
         , handleEventHook    = myEventHook,
         logHook            = myLogHook info,
         startupHook        = myStartupHook
