@@ -16,6 +16,7 @@ import XMonad.Hooks.ManageDocks
 import XMonad.Hooks.ManageHelpers
 import XMonad.Layout.NoBorders
 import XMonad.Hooks.EwmhDesktops
+import XMonad.Util.Run(safeSpawn)
 
 import XMonad.Layout.IndependentScreens
 import XMonad.Layout((|||), Full, Tall)
@@ -27,6 +28,9 @@ import qualified Data.Map        as M
  
 data StartupInfo = StartupInfo {
 }
+
+zsh :: MonadIO m => [String] -> m ()
+zsh s = safeSpawn "zsh" ("-c":s)
 
 
 -- The preferred terminal program, which is used in a binding below and by
@@ -175,9 +179,8 @@ myKeys conf@XConfig {modMask = modm} = M.fromList $
 --    , ((modm .|. extraKeyMask  , xK_9     ), changeKeyboardMap "dvorak")
     , ((modm .|. extraKeyMask  , xK_9     ), enableNeo)
 
-    , ((modm .|. extraKeyMask  , xK_2     ), spawn "zsh -c dual")
-    , ((modm .|. extraKeyMask  , xK_1     ), spawn "zsh -c single")
-
+    , ((modm .|. extraKeyMask  , xK_2     ), zsh ["dual"])
+    , ((modm .|. extraKeyMask  , xK_1     ), zsh ["single"])
     ]
 
 
@@ -312,7 +315,7 @@ myManageHook info = composeAll [
 -- return (All True) if the default handler is to be run afterwards. To
 -- combine event hooks use mappend or mconcat from Data.Monoid.
 --
-myEventHook = handleEventHook defaultConfig <+> fullscreenEventHook 
+myEventHook = handleEventHook def <+> fullscreenEventHook 
  
 ------------------------------------------------------------------------
 -- Status bars and logging
@@ -364,7 +367,7 @@ main =
 --
 -- No need to modify this.
 --
-defaults info = ewmh defaultConfig {
+defaults info = ewmh def {
       -- simple stuff
         terminal           = myTerminal,
         focusFollowsMouse  = myFocusFollowsMouse,
@@ -380,7 +383,7 @@ defaults info = ewmh defaultConfig {
  
       -- hooks, layouts
         layoutHook         = myLayout info,
-        manageHook         = manageDocks <+> myManageHook info <+> manageHook defaultConfig
+        manageHook         = manageDocks <+> myManageHook info <+> manageHook def
         , handleEventHook    = myEventHook,
         logHook            = myLogHook info,
         startupHook        = myStartupHook
