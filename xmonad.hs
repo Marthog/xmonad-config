@@ -26,8 +26,11 @@ import qualified Data.Map        as M
  
 
 
-setBgMon1 = "xsetbg -at 0,0 .xmonad/carina_2560x1440.png"
-setBgMon2 = "xsetbg -at 0,0 .xmonad/carina_2560x1440.png -at 1920,0 .xmonad/carina_2560x1440.png"
+--setBgMon1 = "xsetbg -at 0,0 .xmonad/carina_2560x1440.png"
+--setBgMon2 = "xsetbg -at 0,0 .xmonad/carina_2560x1440.png -at 1920,0 .xmonad/carina_2560x1440.png"
+setBgMon1 = ""
+setBgMon2 = ""
+
 xrandrMon1 = "xrandr --output DisplayPort-0 --auto --primary --output DVI-1 --off"
 xrandrMon2 = "xrandr --output DisplayPort-0 --auto --primary --output DVI-1 --auto --left-of DisplayPort-0" 
 
@@ -37,10 +40,10 @@ data StartupInfo = StartupInfo {
 
 monitorDual, monitorSingle :: MonadIO m => m ()
 monitorDual = do
-    unsafeSpawn $ concat [xrandrMon2, " && ", setBgMon2]
+    unsafeSpawn $ concat [xrandrMon2] -- , " && ", setBgMon2]
 
 monitorSingle = do
-    unsafeSpawn $ concat [xrandrMon1, " && ", setBgMon1]
+    unsafeSpawn $ concat [xrandrMon1] -- , " && ", setBgMon1]
 
 
 -- The preferred terminal program, which is used in a binding below and by
@@ -174,7 +177,11 @@ myKeys conf@XConfig {modMask = modm} = M.fromList $
 --    , ((modm              , xK_period), sendMessage (IncMasterN (-1)))
  
     -- Quit xmonad
-    , ((modm .|. extMask  , xK_q     ), io exitSuccess)
+    , ((modm .|. extMask  , xK_q     ), spawn "shutdown now")
+
+    -- Quit xmonad
+    , ((modm .|. extMask .|. quickstartMask  , xK_q     ), spawn "shutdown now")
+ 
  
     -- Restart xmonad
     , ((modm              , xK_q     ), unsafeSpawn "xmonad --recompile && xmonad --restart")
@@ -240,7 +247,7 @@ programList =
 -- Enable the neo layout. Disable numlock first.
 -- Also use xset -r 51 although I forgot, why.
 enableNeo :: MonadIO m => m ()
-enableNeo = unsafeSpawn "numlockx off && setxkbmap de neo -option  && xset -r 51"
+enableNeo = unsafeSpawn "numlockx off; setxkbmap de neo; xset -r 51"
 
 -- Change the keyboard map.
 changeKeyboardMap x = safeSpawn "setxkbmap" [x]
