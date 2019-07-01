@@ -1,0 +1,11 @@
+flags:
+  xmobar:
+    with_xft: true
+  xmonad-contrib:
+    use_xft: true
+packages:
+- xmobar-git
+- xmonad-git
+- xmonad-contrib-git
+extra-deps: []
+resolver: lts-10.10

@@ -19,11 +19,16 @@ import XMonad.Util.Run(unsafeSpawn, safeSpawn)
 
 import XMonad.Layout((|||), Full, Tall)
 import XMonad.Layout.ThreeColumns(ThreeCol(..))
+import XMonad.Hooks.SetWMName
 
 import XMonad.Actions.UpdatePointer(updatePointer)
 import qualified XMonad.StackSet as W
 import qualified Data.Map        as M
  
+import XMonad.Config.Desktop
+
+data StartupInfo = StartupInfo {
+}
 
 
 --setBgMon1 = "xsetbg -at 0,0 .xmonad/carina_2560x1440.png"
@@ -34,21 +39,21 @@ setBgMon2 = ""
 xrandrMon1 = "xrandr --output DisplayPort-0 --auto --primary --output DVI-1 --off"
 xrandrMon2 = "xrandr --output DisplayPort-0 --auto --primary --output DVI-1 --auto --left-of DisplayPort-0" 
 
-data StartupInfo = StartupInfo {
-}
-
 
 monitorDual, monitorSingle :: MonadIO m => m ()
 monitorDual = do
-    unsafeSpawn $ concat [xrandrMon2] -- , " && ", setBgMon2]
+    pure ()
+    --unsafeSpawn $ concat [xrandrMon2] -- , " && ", setBgMon2]
 
 monitorSingle = do
-    unsafeSpawn $ concat [xrandrMon1] -- , " && ", setBgMon1]
+    pure ()
+    --unsafeSpawn $ concat [xrandrMon1] -- , " && ", setBgMon1]
 
 
 -- The preferred terminal program, which is used in a binding below and by
 -- certain contrib modules.
 myTerminal      = "lxterminal"
+-- myTerminal      = "alacritty"
  
 -- Whether focus follows the mouse pointer.
 myFocusFollowsMouse :: Bool
@@ -204,9 +209,9 @@ myKeys conf@XConfig {modMask = modm} = M.fromList $
 
     -- special programs
     ++
-
     [ ((modm .|. quickstartMask  , k), unsafeSpawn p) | (k, p) <- programList]
-
+    ++
+    [ ((modm , xK_Return), unsafeSpawn myTerminal)]
     ++
  
     --
@@ -239,13 +244,13 @@ programList =
     , (xK_g,    "geany")
     , (xK_space, "pcmanfm-qt")
     , (xK_h,    "thunderbird")
-    , (xK_t,    "tor-browser-en")
+--    , (xK_t,    "tor-browser-en")
     , (xK_Return, myTerminal)
     , (xK_s,    "~/steam")
     ]
 
 -- Enable the neo layout. Disable numlock first.
--- Also use xset -r 51 although I forgot, why.
+-- Also use xset -r 51 to set key repeat.
 enableNeo :: MonadIO m => m ()
 enableNeo = unsafeSpawn "numlockx off; setxkbmap de neo; xset -r 51"
 
@@ -352,7 +357,9 @@ myPP = xmobarPP
                , ppExtras = ppExtras xmobarPP
                } 
 
-myLogHook info = updatePointer (0.5, 0.5) (0.5, 0.5) <* dynamicLog 
+myLogHook info = do
+    updatePointer (0.5, 0.5) (0.5, 0.5) <* dynamicLog 
+    setWMName "LG3D"
 
  
 ------------------------------------------------------------------------
@@ -364,10 +371,17 @@ myLogHook info = updatePointer (0.5, 0.5) (0.5, 0.5) <* dynamicLog
 --
 -- By default, do nothing.
 --
-myStartupHook = monitorSingle
+myStartupHook = do 
+    monitorSingle
+    enableNeo
+    unsafeSpawn "xrandr --output DVI-1 --left-of DisplayPort-0"
+
 
  -- Key binding to toggle the gap for the bar.
 toggleStrutsKey XConfig {XMonad.modMask = modMask} = (modMask, xK_b)
+
+
+
 
 ------------------------------------------------------------------------
 -- Now run xmonad with all the defaults we set up.
@@ -377,6 +391,8 @@ main = do
 
     xmobar <- statusBar "xmobar ~/.xmonad/xmobarrc" myPP toggleStrutsKey (defaults StartupInfo)
     xmonad xmobar
+    -- xmonad (defaults StartupInfo)
+
  
 -- A structure containing your configuration settings, overriding
 -- fields in the default config. Any you don't override, will
@@ -384,6 +400,7 @@ main = do
 --
 -- No need to modify this.
 --
+
 defaults info = ewmh def {
       -- simple stuff
         terminal           = myTerminal,
@@ -401,7 +418,7 @@ defaults info = ewmh def {
       -- hooks, layouts
         layoutHook         = myLayout info,
         manageHook         = manageDocks <> myManageHook info <> manageHook def
-        , handleEventHook    = myEventHook,
-        logHook            = myLogHook info,
-        startupHook        = myStartupHook
+        , handleEventHook    = myEventHook
+        , logHook            = myLogHook info
+        , startupHook        = myStartupHook
     }
